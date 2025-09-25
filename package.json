@@ -1,0 +1,56 @@
+{
+  "name": "aws-lambda-form-processor",
+  "version": "1.0.0",
+  "description": "Open source AWS Lambda form processor with API Gateway, WAF, and SES",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "deploy": "sam deploy --guided",
+    "deploy:prod": "sam deploy",
+    "local": "sam local start-api",
+    "invoke": "sam local invoke FormProcessorFunction",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "form",
+    "processor",
+    "ses",
+    "api-gateway",
+    "waf",
+    "serverless"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.450.0",
+    "@aws-sdk/client-ses": "^3.450.0",
+    "@aws-sdk/lib-dynamodb": "^3.450.0",
+    "ajv": "^8.12.0",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.119",
+    "@types/jest": "^29.5.8",
+    "@types/node": "^20.8.10",
+    "@typescript-eslint/eslint-plugin": "^6.9.1",
+    "@typescript-eslint/parser": "^6.9.1",
+    "eslint": "^8.53.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": ["**/__tests__/**/*.test.ts"],
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/**/*.d.ts"
+    ]
+  }
+}

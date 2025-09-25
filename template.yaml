@@ -1,0 +1,224 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'AWS Lambda Form Processor with API Gateway, WAF, and SES'
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs18.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        LOG_LEVEL: INFO
+        NODE_ENV: production
+
+Parameters:
+  EmailRecipient:
+    Type: String
+    Description: Email address to receive form submissions
+    Default: admin@example.com
+  
+  EmailSender:
+    Type: String
+    Description: Verified SES sender email address
+    Default: noreply@example.com
+  
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Description: Comma-separated list of allowed CORS origins
+    Default: https://yourusername.github.io
+  
+  DedupeTableTTL:
+    Type: Number
+    Description: TTL in seconds for duplicate detection table (default 24 hours)
+    Default: 86400
+  
+  MaxDuplicateCount:
+    Type: Number
+    Description: Maximum duplicate submissions before blocking (default 3)
+    Default: 3
+
+Resources:
+  # WAF Web ACL for DDoS protection
+  FormProcessorWAF:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub '${AWS::StackName}-form-processor-waf'
+      Description: WAF for form processor API Gateway
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      Rules:
+        - Name: RateLimitRule
+          Priority: 1
+          Statement:
+            RateBasedStatement:
+              Limit: 2000
+              AggregateKeyType: IP
+          Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitRule
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSet
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 3
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSet
+
+  # DynamoDB table for duplicate detection
+  DedupeTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-dedupe'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: hash
+          AttributeType: S
+      KeySchema:
+        - AttributeName: hash
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # DynamoDB table for rate limiting
+  RateLimitTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-rate-limit'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ip
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ip
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # Lambda function
+  FormProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-form-processor'
+      CodeUri: src/
+      Handler: index.handler
+      Environment:
+        Variables:
+          DEDUPE_TABLE_NAME: !Ref DedupeTable
+          RATE_LIMIT_TABLE_NAME: !Ref RateLimitTable
+          EMAIL_RECIPIENT: !Ref EmailRecipient
+          EMAIL_SENDER: !Ref EmailSender
+          ALLOWED_ORIGINS: !Join [',', !Ref AllowedOrigins]
+          DEDUPE_TTL: !Ref DedupeTableTTL
+          MAX_DUPLICATE_COUNT: !Ref MaxDuplicateCount
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DedupeTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: '*'
+      Events:
+        FormSubmission:
+          Type: Api
+          Properties:
+            Path: /submit
+            Method: post
+            RestApiId: !Ref FormProcessorAPI
+            Auth:
+              ApiKeyRequired: false
+
+  # API Gateway
+  FormProcessorAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}-form-processor-api'
+      StageName: prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: !Sub "'${AllowedOrigins}'"
+        MaxAge: "'600'"
+      ThrottleConfig:
+        BurstLimit: 100
+        RateLimit: 50
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit: 50
+          LoggingLevel: INFO
+          DataTraceEnabled: true
+          MetricsEnabled: true
+
+  # Associate WAF with API Gateway
+  WAFAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Sub 'arn:aws:apigateway:${AWS::Region}::/restapis/${FormProcessorAPI}/stages/prod'
+      WebACLArn: !GetAtt FormProcessorWAF.Arn
+
+  # CloudWatch Log Group
+  FormProcessorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${FormProcessorFunction}'
+      RetentionInDays: 14
+
+Outputs:
+  ApiUrl:
+    Description: 'API Gateway endpoint URL'
+    Value: !Sub 'https://${FormProcessorAPI}.execute-api.${AWS::Region}.amazonaws.com/prod/submit'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiUrl'
+  
+  WAFArn:
+    Description: 'WAF Web ACL ARN'
+    Value: !GetAtt FormProcessorWAF.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-WAFArn'
+  
+  DedupeTableName:
+    Description: 'DynamoDB table for duplicate detection'
+    Value: !Ref DedupeTable
+    Export:
+      Name: !Sub '${AWS::StackName}-DedupeTable'
+  
+  RateLimitTableName:
+    Description: 'DynamoDB table for rate limiting'
+    Value: !Ref RateLimitTable
+    Export:
+      Name: !Sub '${AWS::StackName}-RateLimitTable'
