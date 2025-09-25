@@ -7,8 +7,8 @@
     "build": "tsc",
     "test": "jest",
     "test:watch": "jest --watch",
-    "deploy": "sam deploy --guided",
-    "deploy:prod": "sam deploy",
+    "deploy": "sam build && sam deploy --guided",
+    "deploy:prod": "sam build && sam deploy",
     "local": "sam local start-api",
     "invoke": "sam local invoke FormProcessorFunction",
     "lint": "eslint src/**/*.ts",
@@ -30,8 +30,7 @@
     "@aws-sdk/client-dynamodb": "^3.450.0",
     "@aws-sdk/client-ses": "^3.450.0",
     "@aws-sdk/lib-dynamodb": "^3.450.0",
-    "ajv": "^8.12.0",
-    "crypto": "^1.0.1"
+    "ajv": "^8.12.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.119",

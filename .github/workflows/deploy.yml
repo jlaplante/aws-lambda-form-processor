@@ -15,7 +15,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
     
     - name: Install dependencies
@@ -36,6 +36,11 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
+    
+    - name: Build SAM application
+      run: sam build
+      env:
+        SAM_CLI_TELEMETRY: 0
     
     - name: Deploy SAM application
       run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset

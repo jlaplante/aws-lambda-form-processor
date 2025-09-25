@@ -92,7 +92,7 @@ export function normalizeSubmission(data: FormSubmission): FormSubmission {
 }
 
 export function generateSubmissionHash(normalized: FormSubmission): string {
-  const crypto = require('crypto');
+  const crypto = require('node:crypto');
   
   // Create a deterministic hash by sorting keys and stringifying
   const sortedEntries = Object.entries(normalized)
