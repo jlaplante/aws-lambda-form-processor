@@ -7,7 +7,7 @@ export interface ProcessedSubmission {
   hash: string;
   timestamp: string;
   ip: string;
-  userAgent?: string;
+  userAgent?: string | undefined;
 }
 
 export interface EmailTemplate {

@@ -9,7 +9,7 @@ import { ProcessedSubmission, FormSubmission } from './types';
 
 export async function handler(
   event: APIGatewayProxyEvent,
-  context: Context
+  _context: Context
 ): Promise<APIGatewayProxyResult> {
   console.log('Received event:', JSON.stringify(event, null, 2));
 
@@ -95,7 +95,7 @@ export async function handler(
       hash,
       timestamp: new Date().toISOString(),
       ip: clientIP,
-      userAgent: event.headers['User-Agent'] || event.headers['user-agent']
+      userAgent: event.headers['User-Agent'] || event.headers['user-agent'] || undefined
     };
 
     // Generate and send email

@@ -8,7 +8,7 @@ export function createCorsResponse(
   event: APIGatewayProxyEvent
 ): APIGatewayProxyResult {
   const origin = event.headers.Origin || event.headers.origin;
-  const allowedOrigin = isOriginAllowed(origin, config) ? origin : config.allowedOrigins[0];
+  const allowedOrigin = isOriginAllowed(origin, config) ? origin! : config.allowedOrigins[0];
 
   return {
     statusCode,

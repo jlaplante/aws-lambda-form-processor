@@ -3,7 +3,7 @@ import { EmailTemplate, ProcessedSubmission, Config } from './types';
 
 const sesClient = new SESClient({});
 
-export function generateEmailTemplate(submission: ProcessedSubmission, config: Config): EmailTemplate {
+export function generateEmailTemplate(submission: ProcessedSubmission, _config: Config): EmailTemplate {
   const { normalized, timestamp, ip, userAgent } = submission;
   
   // Create a clean subject line
