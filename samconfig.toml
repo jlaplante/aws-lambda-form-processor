@@ -8,5 +8,6 @@ s3_prefix = "aws-lambda-form-processor"
 region = "us-east-1"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "EmailRecipient=admin@example.com EmailSender=noreply@example.com AllowedOrigins=https://yourusername.github.io"
+parameter_overrides = "EmailRecipient=jon.laplante@jonlaplante.com EmailSender=noreply@example.com AllowedOrigins=https://productguyjon.info"
+# parameter_overrides = "EmailRecipient=admin@example.com EmailSender=noreply@example.com AllowedOrigins=https://yourusername.github.io"
 image_repositories = []
